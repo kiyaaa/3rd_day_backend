@@ -16,6 +16,17 @@ const verifyToken = (token) => {
 };
 
 const protect = asyncHandler(async (req, res, next) => {
+  // 해커톤 데모 모드 - 인증 건너뛰기
+  if (process.env.NODE_ENV === 'development' || process.env.DEMO_MODE === 'true') {
+    req.user = {
+      id: 1,
+      email: 'demo@demo.com',
+      name: 'Demo User',
+      role: 'user'
+    };
+    return next();
+  }
+
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {

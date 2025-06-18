@@ -16,8 +16,8 @@
     </div>
 
     <div class="chat-container">
-        <div class="connection-status disconnected" id="connectionStatus">
-            연결 끊김
+        <div class="connection-status connected" id="connectionStatus">
+            연결됨
         </div>
 
         <!-- 질문 등록 폼 -->
@@ -40,26 +40,21 @@
 
     <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
     <script>
-        const API_URL = 'http://localhost:3004/api';
         const WS_URL = 'http://localhost:3004';
         
         let socket = null;
-        let token = null;
         let currentRoom = null;
-        let questionId = null;
-        let userId = null;
+        let questionId = 1;
 
-        // 데모 모드로 바로 연결
-        async function login() {
-            // 데모 모드 - 로그인 과정 생략
-            userId = 1;
-            token = 'demo-token';
-            addSystemMessage('데모 모드로 시작');
+        // 페이지 로드 시 바로 시작
+        window.onload = function() {
+            console.log('페이지 로드됨');
             connectWebSocket();
-        }
+        };
 
         // WebSocket 연결
         function connectWebSocket() {
+            console.log('WebSocket 연결 시도...');
             socket = io(WS_URL, {
                 auth: { 
                     demo: 'true',
@@ -68,9 +63,10 @@
             });
 
             socket.on('connect', () => {
+                console.log('WebSocket 연결됨');
                 document.getElementById('connectionStatus').textContent = '연결됨';
                 document.getElementById('connectionStatus').className = 'connection-status connected';
-                addSystemMessage('WebSocket 연결됨');
+                addSystemMessage('데모 모드로 시작 - WebSocket 연결됨');
             });
 
             socket.on('disconnect', () => {
@@ -79,8 +75,8 @@
             });
 
             socket.on('new_message', (msg) => {
-                if (msg.sender_id !== userId) {
-                    addMessage(msg.sender_name, msg.content, false, new Date(msg.created_at));
+                if (msg.sender_name !== 'Alex Kim') {
+                    addMessage(msg.sender_name, msg.content, false);
                 }
             });
 
@@ -92,19 +88,13 @@
                 addSystemMessage(`${data.userName}님이 나갔습니다`);
             });
 
-            socket.on('typing_indicator', (data) => {
-                const indicator = document.getElementById('typingIndicator');
-                if (data.isTyping && data.userName !== 'Alex Kim') {
-                    indicator.textContent = `${data.userName}님이 입력 중...`;
-                    indicator.style.display = 'block';
-                } else {
-                    indicator.style.display = 'none';
-                }
-            });
-
             socket.on('room_created', (data) => {
                 addSystemMessage(`채팅방이 생성되었습니다 (ID: ${data.roomId})`);
-                // 자동 입장
+                setTimeout(() => joinRoom(data.roomId), 1000);
+            });
+
+            socket.on('create_room', (data) => {
+                addSystemMessage(`채팅방이 생성되었습니다 (ID: ${data.roomId})`);
                 setTimeout(() => joinRoom(data.roomId), 1000);
             });
 
@@ -113,8 +103,9 @@
             });
         }
 
-        // 질문 등록 (데모 버전)
-        async function submitQuestion() {
+        // 질문 등록
+        function submitQuestion() {
+            console.log('submitQuestion 함수 호출됨');
             const title = document.getElementById('questionTitle').value;
             const content = document.getElementById('questionContent').value;
             
@@ -123,16 +114,15 @@
                 return;
             }
 
-            // 데모 모드 - 실제 API 호출 없이 시뮬레이션
-            questionId = 1;
-            addSystemMessage(`질문이 등록되었습니다 (ID: ${questionId})`);
+            // 질문 등록 메시지
+            addSystemMessage(`질문이 등록되었습니다`);
             document.getElementById('questionForm').style.display = 'none';
             
             // 2초 후 전문가 매칭 알림
             setTimeout(() => {
                 addSystemMessage('AI가 전문가를 매칭했습니다!');
                 
-                // Sarah와 Mike에게 알림 보내기 (시뮬레이션)
+                // 전문가들에게 알림 보내기
                 socket.emit('notify_experts', {
                     questionId: 1,
                     title,
@@ -143,30 +133,22 @@
             
             // 5초 후 채팅방 생성 버튼 표시
             setTimeout(() => {
-                addSystemMessage('
-                    <button onclick="createChatRoom()" style="background:#25d366;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer">
-                        채팅방 생성하기
-                    </button>
-                ');
+                const btnHtml = '<button onclick="createChatRoom()" style="background:#25d366;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer">채팅방 생성하기</button>';
+                addSystemMessage(btnHtml);
             }, 5000);
         }
 
-
-        // 채팅방 생성 (데모 버전)
+        // 채팅방 생성
         function createChatRoom() {
-            // 데모 모드 - WebSocket으로 채팅방 생성 시뮬레이션
+            console.log('createChatRoom 함수 호출됨');
             const roomId = 1;
             socket.emit('create_room', { roomId, questionId });
-            
-            // 모든 클라이언트에 채팅방 생성 알림
-            addSystemMessage(`채팅방이 생성되었습니다 (ID: ${roomId})`);
-            
-            // 1초 후 자동 입장
-            setTimeout(() => joinRoom(roomId), 1000);
+            addSystemMessage(`채팅방 생성 중...`);
         }
 
         // 채팅방 입장
         function joinRoom(roomId) {
+            console.log('joinRoom 함수 호출됨', roomId);
             currentRoom = roomId;
             socket.emit('join_room', { roomId: roomId.toString() });
             
@@ -195,12 +177,12 @@
         }
 
         // 메시지 UI 추가
-        function addMessage(sender, content, isSent = false, time = new Date()) {
+        function addMessage(sender, content, isSent = false) {
             const messagesDiv = document.getElementById('messages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
             
-            const timeStr = time.toLocaleTimeString('ko-KR', { 
+            const time = new Date().toLocaleTimeString('ko-KR', { 
                 hour: '2-digit', 
                 minute: '2-digit' 
             });
@@ -209,12 +191,12 @@
                 messageDiv.innerHTML = `
                     <div class="sender">${sender}</div>
                     <div>${content}</div>
-                    <div class="time">${timeStr}</div>
+                    <div class="time">${time}</div>
                 `;
             } else {
                 messageDiv.innerHTML = `
                     <div>${content}</div>
-                    <div class="time">${timeStr}</div>
+                    <div class="time">${time}</div>
                 `;
             }
             
@@ -232,16 +214,13 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        // Enter 키 처리
+        // Enter 키로 메시지 전송
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('messageInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     sendMessage();
                 }
             });
-            
-            // 자동 로그인
-            login();
         });
     </script>
 </body>
