@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alex Kim - 연결이</title>
+    <link rel="stylesheet" href="shared-styles.css">
+</head>
+<body>
+    <div class="header">
+        <div class="user-avatar">AK</div>
+        <div class="user-info">
+            <h2>Alex Kim (질문자)</h2>
+            <div class="status">온라인</div>
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <div class="connection-status disconnected" id="connectionStatus">
+            연결 끊김
+        </div>
+
+        <!-- 질문 등록 폼 -->
+        <div class="question-form" id="questionForm">
+            <h3>질문 등록</h3>
+            <input type="text" id="questionTitle" placeholder="질문 제목" value="React useEffect 무한 루프 문제">
+            <textarea id="questionContent" placeholder="질문 내용" rows="3">useEffect 안에서 state를 업데이트하면 무한 루프가 발생합니다.</textarea>
+            <button onclick="submitQuestion()">질문 등록</button>
+        </div>
+
+        <div class="messages" id="messages"></div>
+        
+        <div class="typing-indicator" id="typingIndicator" style="display:none"></div>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="messageInput" placeholder="메시지 입력..." disabled>
+        <button id="sendBtn" onclick="sendMessage()" disabled>전송</button>
+    </div>
+
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script>
+        const API_URL = 'http://localhost:3004/api';
+        const WS_URL = 'http://localhost:3004';
+        
+        let socket = null;
+        let token = null;
+        let currentRoom = null;
+        let questionId = null;
+        let userId = null;
+
+        // 데모 모드로 바로 연결
+        async function login() {
+            // 데모 모드 - 로그인 과정 생략
+            userId = 1;
+            token = 'demo-token';
+            addSystemMessage('데모 모드로 시작');
+            connectWebSocket();
+        }
+
+        // WebSocket 연결
+        function connectWebSocket() {
+            socket = io(WS_URL, {
+                auth: { 
+                    demo: 'true',
+                    demoUser: 'alex@demo.com'
+                }
+            });
+
+            socket.on('connect', () => {
+                document.getElementById('connectionStatus').textContent = '연결됨';
+                document.getElementById('connectionStatus').className = 'connection-status connected';
+                addSystemMessage('WebSocket 연결됨');
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('connectionStatus').textContent = '연결 끊김';
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+            });
+
+            socket.on('new_message', (msg) => {
+                if (msg.sender_id !== userId) {
+                    addMessage(msg.sender_name, msg.content, false, new Date(msg.created_at));
+                }
+            });
+
+            socket.on('user_joined', (data) => {
+                addSystemMessage(`${data.userName}님이 입장했습니다`);
+            });
+
+            socket.on('user_left', (data) => {
+                addSystemMessage(`${data.userName}님이 나갔습니다`);
+            });
+
+            socket.on('typing_indicator', (data) => {
+                const indicator = document.getElementById('typingIndicator');
+                if (data.isTyping && data.userName !== 'Alex Kim') {
+                    indicator.textContent = `${data.userName}님이 입력 중...`;
+                    indicator.style.display = 'block';
+                } else {
+                    indicator.style.display = 'none';
+                }
+            });
+
+            socket.on('room_created', (data) => {
+                addSystemMessage(`채팅방이 생성되었습니다 (ID: ${data.roomId})`);
+                // 자동 입장
+                setTimeout(() => joinRoom(data.roomId), 1000);
+            });
+
+            socket.on('expert_matched', (data) => {
+                addSystemMessage(`전문가 매칭: ${data.expertName}`);
+            });
+        }
+
+        // 질문 등록 (데모 버전)
+        async function submitQuestion() {
+            const title = document.getElementById('questionTitle').value;
+            const content = document.getElementById('questionContent').value;
+            
+            if (!title || !content) {
+                alert('제목과 내용을 입력해주세요');
+                return;
+            }
+
+            // 데모 모드 - 실제 API 호출 없이 시뮬레이션
+            questionId = 1;
+            addSystemMessage(`질문이 등록되었습니다 (ID: ${questionId})`);
+            document.getElementById('questionForm').style.display = 'none';
+            
+            // 2초 후 전문가 매칭 알림
+            setTimeout(() => {
+                addSystemMessage('AI가 전문가를 매칭했습니다!');
+                
+                // Sarah와 Mike에게 알림 보내기 (시뮬레이션)
+                socket.emit('notify_experts', {
+                    questionId: 1,
+                    title,
+                    content,
+                    urgency: 'high'
+                });
+            }, 2000);
+            
+            // 5초 후 채팅방 생성 버튼 표시
+            setTimeout(() => {
+                addSystemMessage('
+                    <button onclick="createChatRoom()" style="background:#25d366;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer">
+                        채팅방 생성하기
+                    </button>
+                ');
+            }, 5000);
+        }
+
+
+        // 채팅방 생성 (데모 버전)
+        function createChatRoom() {
+            // 데모 모드 - WebSocket으로 채팅방 생성 시뮬레이션
+            const roomId = 1;
+            socket.emit('create_room', { roomId, questionId });
+            
+            // 모든 클라이언트에 채팅방 생성 알림
+            addSystemMessage(`채팅방이 생성되었습니다 (ID: ${roomId})`);
+            
+            // 1초 후 자동 입장
+            setTimeout(() => joinRoom(roomId), 1000);
+        }
+
+        // 채팅방 입장
+        function joinRoom(roomId) {
+            currentRoom = roomId;
+            socket.emit('join_room', { roomId: roomId.toString() });
+            
+            // 입력 필드 활성화
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            
+            addSystemMessage(`채팅방 ${roomId}에 입장했습니다`);
+        }
+
+        // 메시지 전송
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            
+            if (!content || !currentRoom) return;
+            
+            socket.emit('send_message', {
+                roomId: currentRoom.toString(),
+                content: content,
+                type: 'text'
+            });
+            
+            addMessage('Alex Kim', content, true);
+            input.value = '';
+        }
+
+        // 메시지 UI 추가
+        function addMessage(sender, content, isSent = false, time = new Date()) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+            
+            const timeStr = time.toLocaleTimeString('ko-KR', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            if (!isSent) {
+                messageDiv.innerHTML = `
+                    <div class="sender">${sender}</div>
+                    <div>${content}</div>
+                    <div class="time">${timeStr}</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div>${content}</div>
+                    <div class="time">${timeStr}</div>
+                `;
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // 시스템 메시지
+        function addSystemMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'system-message';
+            messageDiv.innerHTML = message;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Enter 키 처리
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('messageInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            // 자동 로그인
+            login();
+        });
+    </script>
+</body>
+</html>
