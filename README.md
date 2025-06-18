@@ -1,170 +1,118 @@
-# Q&A Expert 챗봇 UI
+# 연결이(Yeongyul) - Real-time Expert Matching Platform Backend
 
-전문가 Q&A API를 테스트하고 사용할 수 있는 챗봇 UI 애플리케이션입니다.
+실시간 전문가 매칭 플랫폼의 백엔드 서버입니다.
 
-## 구성 요소
+## 🚀 주요 기능
 
-1. **API 테스터** (`index.html`) - API 엔드포인트를 직접 테스트
-2. **인터랙티브 데모** (`demo.html`) - 시나리오 기반 데모
-3. **챗봇 UI** (`chatbot.html`) - 실제 사용 가능한 챗봇 인터페이스
+- **실시간 전문가 매칭**: AI 기반 RAG 시스템으로 질문에 최적의 전문가 매칭
+- **WebSocket 실시간 채팅**: Socket.io를 활용한 실시간 그룹 채팅
+- **JWT 인증**: 안전한 사용자 인증 시스템
+- **데모 모드**: 로그인 없이 바로 체험 가능
 
-## 설치 및 실행 방법
+## 🛠️ 기술 스택
 
-### 1. 의존성 설치
+- **Backend**: Node.js, Express.js
+- **WebSocket**: Socket.io
+- **Database**: PostgreSQL (In-memory for demo)
+- **Authentication**: JWT
+- **Cache**: Redis (Mock for demo)
+
+## 📦 설치 및 실행
+
+### 1. 패키지 설치
 ```bash
 npm install
 ```
 
-### 2. API 서버 설정
-`config.js` 파일을 열어 API 서버 주소를 변경하세요:
-
-```javascript
-const API_CONFIG = {
-    // Base URL configuration
-    BASE_URL: process.env.API_BASE_URL || 'https://your-api-server.com',
-    
-    // API version (필요시 변경)
-    API_VERSION: 'v1',
-    
-    // API endpoints (필요시 추가/수정)
-    ENDPOINTS: {
-        REGISTER_SPECIALTY: '/register-specialty',
-        GET_MY_SPECIALTY: '/my-specialty/{userId}',
-        // ... 기타 엔드포인트
-    }
-};
-```
-
-환경 변수를 사용하여 설정할 수도 있습니다:
+### 2. 환경 변수 설정
 ```bash
-API_BASE_URL=https://your-api-server.com npm start
-```
-
-만약 실제 API 서버를 사용한다면, `app.js`의 `makeAPICall` 함수를 다음과 같이 수정하세요:
-
-```javascript
-async function makeAPICall(method, endpoint, body) {
-    const url = BASE_URL + endpoint;
-    
-    try {
-        addChatMessage('🔄 요청 전송 중...', 'system');
-        
-        const options = {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            mode: 'cors'
-        };
-        
-        if (body) {
-            options.body = JSON.stringify(body);
-        }
-        
-        // 실제 API 호출
-        const response = await fetch(url, options);
-        const data = await response.json();
-        
-        // Store questionId if returned
-        if (data.questionId) {
-            currentQuestionId = data.questionId;
-        }
-        
-        addChatMessage(formatJSON(data), 'response', response.ok);
-        
-        // Simulate WebSocket events
-        simulateWsEvents(endpoint, data);
-        
-    } catch (error) {
-        addChatMessage(`❌ 오류 발생: ${error.message}`, 'error');
-    }
-}
+cp .env.example .env
+# .env 파일 수정
 ```
 
 ### 3. 서버 실행
 ```bash
 npm start
-# 또는
-node server.js
+# 또는 개발 모드
+npm run dev
 ```
 
-### 4. 브라우저에서 접속
-- API 테스터: http://localhost:3000
-- 데모: http://localhost:3000/demo
-- 챗봇: http://localhost:3000/chatbot
+### 4. 웹 데모 실행
 
-## API 엔드포인트
+브라우저에서 4개의 창을 열어주세요:
+- http://localhost:3004/demo/alex.html (질문자)
+- http://localhost:3004/demo/sarah.html (React 전문가)
+- http://localhost:3004/demo/mike.html (Node.js 전문가)
+- http://localhost:3004/demo/server-monitor.html (서버 모니터)
 
-### 전문 분야 관리
-- `POST /api/v1/register-specialty` - 전문 분야 등록
-- `GET /api/v1/my-specialty/{userId}` - 내 전문 분야 조회
+## 📁 프로젝트 구조
 
-### 질문하기
-- `POST /api/v1/ask-question` - 질문 등록
-- `GET /api/v1/my-questions/{userId}` - 내 질문 조회
-
-### 답변하기
-- `GET /api/v1/assigned-questions/{userId}` - 할당된 질문 조회
-- `POST /api/v1/submit-answer` - 답변 제출
-- `GET /api/v1/question-answers/{questionId}` - 답변 확인
-
-## 주요 기능
-
-### 챗봇 UI (`/chatbot`)
-- 음성 입력
-- 파일 첨부
-- 이모지 지원
-- 메시지 관리 (복사/삭제/고정)
-- 대화 내보내기
-- 실시간 알림
-
-### API 테스터 (`/`)
-- 모든 API 엔드포인트 테스트
-- 요청/응답 시각화
-- WebSocket 이벤트 모니터링
-
-### 데모 (`/demo`)
-- 전문가 등록 시나리오
-- 질문자 시나리오
-- 전체 플로우 시나리오
-
-## 커스터마이징
-
-### 테마 색상 변경
-`chatbot.html`의 CSS 변수를 수정하세요:
-```css
-:root {
-    --primary-color: #3b82f6;
-    --secondary-color: #8b5cf6;
-    --success-color: #10b981;
-    --warning-color: #f59e0b;
-    --danger-color: #ef4444;
-}
+```
+├── src/
+│   ├── api/              # REST API 라우트
+│   ├── middleware/       # Express 미들웨어
+│   ├── models/           # 데이터베이스 모델
+│   ├── services/         # 비즈니스 로직
+│   ├── utils/            # 유틸리티 함수
+│   ├── websocket/        # WebSocket 핸들러
+│   └── server.js         # 메인 서버 파일
+├── web-clients/          # 웹 데모 UI
+├── clients/              # 터미널 클라이언트
+└── package.json
 ```
 
-### 사용자 정보 변경
-`chatbot.js`에서 기본 사용자 정보를 수정하세요:
-```javascript
-let currentUser = {
-    id: 'U123456',
-    name: '김삼성',
-    level: 3,
-    specialties: ['CMP 공정', '스크래치 불량 분석', '표면 결함 검사']
-};
-```
+## 🎮 데모 사용법
 
-## 문제 해결
+1. 각 브라우저 창을 세로로 길게 (폭 400px) 배치
+2. Alex 창에서 "질문 등록" 버튼 클릭
+3. Sarah, Mike 창에 나타난 알림에서 "수락" 클릭
+4. Alex 창에서 "채팅방 생성하기" 클릭
+5. 각 전문가 창에서 "채팅방 입장하기" 클릭
+6. 실시간으로 대화 시작!
 
-### CORS 오류
-API 서버에서 CORS를 허용해야 합니다. 서버에 다음 헤더를 추가하세요:
-```
-Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
-Access-Control-Allow-Headers: Content-Type
-```
+## 📚 API 문서
 
-### WebSocket 연결 실패
-현재는 WebSocket 이벤트를 시뮬레이션합니다. 실제 WebSocket 서버를 사용하려면 `app.js`의 `initWebSocket` 함수를 수정하세요.
+### Authentication
+- `POST /api/auth/register` - 회원가입
+- `POST /api/auth/login` - 로그인
+- `GET /api/auth/me` - 내 정보
 
-## 라이센스
-MIT
+### Questions
+- `POST /api/questions` - 질문 등록
+- `GET /api/questions` - 질문 목록
+- `PUT /api/questions/:id` - 질문 수정
+
+### Chat
+- `POST /api/chat/rooms` - 채팅방 생성
+- `GET /api/chat/rooms/:id/messages` - 메시지 조회
+
+### WebSocket Events
+- `join_room` - 채팅방 입장
+- `send_message` - 메시지 전송
+- `typing_start/stop` - 타이핑 인디케이터
+
+## 🔗 관련 프로젝트
+
+- [fancyQaChat](https://github.com/kiyaaa/fancyQaChat) - 프로젝트 설계 문서 및 데모
+
+## 🤝 기여하기
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 라이선스
+
+MIT License
+
+## 👥 팀
+
+- Backend Development: Claude & Human Collaboration
+- UI/UX Design: 메신저 스타일 인터페이스
+- System Architecture: 마이크로서비스 기반 설계
+
+---
+
+🔧 Developed with ❤️ using Claude Code Assistant
